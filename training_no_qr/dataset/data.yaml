@@ -1,0 +1,14 @@
+path: C:\Users\keert\OneDrive\Desktop\pcb_detctions\training_no_qr\dataset
+train: images/train
+val: images/val
+names:
+  0: Misalignment
+  1: Burnt
+  2: Circuit Breakoff
+  3: Excess Solder
+  4: IC Burnout
+  5: Insufficient Solder
+  6: Missing Component
+  7: Missing Drivers
+  8: Missing Microcontroller
+  9: Open Circuit

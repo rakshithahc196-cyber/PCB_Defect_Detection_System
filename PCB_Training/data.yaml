@@ -1,0 +1,19 @@
+train: C:\Users\csp\Desktop\New folder\training\dataset\train
+val: C:\Users\csp\Desktop\New folder\training\dataset\val
+test: C:\Users\csp\Desktop\New folder\training\dataset\test
+
+names:
+  0: "goodpcb"
+  1: "misalignment"
+  2: "burnt_pcb"
+  3: "circutbreakdown"
+  4: "excesssolder"
+  5: "icburnout"
+  6: "insufficientbreakdown"
+  7: "missingcomponent"
+  8: "missingdriver"
+  9: "missingmicrocontroller"
+  10: "opencircuit"
+
+
+  

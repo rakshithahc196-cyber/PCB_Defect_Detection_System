@@ -1,0 +1,146 @@
+[
+  {
+    "class": "Misalignment",
+    "source": "misalignment.png",
+    "boxes": [
+      [
+        0.16,
+        0.18,
+        0.11,
+        0.15
+      ],
+      [
+        0.44,
+        0.09,
+        0.1,
+        0.13
+      ],
+      [
+        0.69,
+        0.11,
+        0.13,
+        0.19
+      ],
+      [
+        0.69,
+        0.45,
+        0.1,
+        0.12
+      ],
+      [
+        0.69,
+        0.67,
+        0.09,
+        0.12
+      ]
+    ]
+  },
+  {
+    "class": "Burnt",
+    "source": "burnt.png",
+    "boxes": [
+      [
+        0.3969,
+        0.4156,
+        0.198,
+        0.1794
+      ]
+    ]
+  },
+  {
+    "class": "Circuit Breakoff",
+    "source": "circuit_breakoff.png",
+    "boxes": [
+      [
+        0.0,
+        0.6144,
+        0.107,
+        0.2108
+      ]
+    ]
+  },
+  {
+    "class": "Excess Solder",
+    "source": "excess_solder.png",
+    "boxes": [
+      [
+        0.4042,
+        0.6429,
+        0.2325,
+        0.1675
+      ]
+    ]
+  },
+  {
+    "class": "IC Burnout",
+    "source": "ic_burnout.png",
+    "boxes": [
+      [
+        0.0514,
+        0.2827,
+        0.265,
+        0.1371
+      ]
+    ]
+  },
+  {
+    "class": "Insufficient Solder",
+    "source": "insufficient_solder.png",
+    "boxes": [
+      [
+        0.62,
+        0.625,
+        0.06,
+        0.12
+      ]
+    ]
+  },
+  {
+    "class": "Missing Component",
+    "source": "missing_component.png",
+    "boxes": [
+      [
+        0.6037,
+        0.2928,
+        0.1936,
+        0.3434
+      ]
+    ]
+  },
+  {
+    "class": "Missing Drivers",
+    "source": "missing_drivers.png",
+    "boxes": [
+      [
+        0.0725,
+        0.2987,
+        0.3215,
+        0.2636
+      ]
+    ]
+  },
+  {
+    "class": "Missing Microcontroller",
+    "source": "missing_microcontroller.png",
+    "boxes": [
+      [
+        0.1866,
+        0.6313,
+        0.1713,
+        0.2633
+      ]
+    ]
+  },
+  {
+    "class": "Open Circuit",
+    "source": "open_circuit.png",
+    "boxes": [
+      [
+        0.3609,
+        0.242,
+        0.3412,
+        0.7029
+      ]
+    ]
+  }
+]

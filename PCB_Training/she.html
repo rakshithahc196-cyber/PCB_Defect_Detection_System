@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submarine Water Quality Dashboard</title>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- PDF + Excel Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --accent-color: #38bdf8;
+      --danger-color: #f43f5e;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --purple-color: #8b5cf6;
+      --border-radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      color: var(--accent-color);
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+
+    .header p {
+      color: #94a3b8;
+      margin-top: 0.5rem;
+    }
+
+    .controls, .download-controls {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: var(--border-radius);
+      max-width: 850px;
+      margin-left: auto;
+      margin-right: auto;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 1rem;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+      transition: 0.3s;
+      text-transform: uppercase;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.15);
+    }
+
+    .btn-forward { background: var(--success-color); }
+    .btn-stop { background: var(--danger-color); }
+    .btn-backward { background: var(--purple-color); }
+    .btn-pdf { background: #dc2626; }
+    .btn-excel { background: #16a34a; }
+    .btn-clear { background: #64748b; }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+      max-width: 1450px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+
+    .card-title {
+      color: #94a3b8;
+      font-size: 1.15rem;
+      font-weight: 600;
+    }
+
+    .card-value {
+      color: var(--accent-color);
+      font-size: 2rem;
+      font-weight: bold;
+      text-align: right;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .card-label {
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      background: rgba(255,255,255,0.1);
+      padding: 5px 8px;
+      border-radius: 6px;
+      margin-top: 8px;
+      display: inline-block;
+    }
+
+    .chart-container {
+      height: 100px;
+      margin-top: 1rem;
+    }
+
+    .direction-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 170px;
+      text-align: center;
+    }
+
+    .direction-card .card-value {
+      font-size: 3.3rem;
+      color: var(--purple-color);
+    }
+
+    .ai-card, .history-card {
+      grid-column: span 2;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(56,189,248,0.35);
+    }
+
+    .ai-title {
+      font-size: 1.5rem;
+      color: var(--accent-color);
+      margin-bottom: 1rem;
+    }
+
+    .ai-status {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+
+    .good { color: var(--success-color); }
+    .bad { color: var(--danger-color); }
+    .medium { color: var(--warning-color); }
+
+    .suggestion-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .suggestion-box {
+      background: rgba(255,255,255,0.06);
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .suggestion-box h3 {
+      color: #cbd5e1;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+
+    .suggestion-box p {
+      font-size: 1.05rem;
+      font-weight: bold;
+    }
+
+    .reason-box {
+      margin-top: 1rem;
+      background: rgba(56,189,248,0.08);
+      padding: 1rem;
+      border-radius: 12px;
+      color: #dbeafe;
+      line-height: 1.6;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 1rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1100px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      color: var(--accent-color);
+      background: rgba(56,189,248,0.08);
+    }
+
+    td {
+      color: #e2e8f0;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 1rem; }
+      .controls, .download-controls { flex-direction: column; }
+      .ai-card, .history-card { grid-column: span 1; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>Submarine Telemetry Dashboard</h1>
+    <p>Live Sensor Data, AI Water Quality Suggestion, Firebase History, PDF & Excel Report</p>
+  </div>
+
+  <div class="controls">
+    <button class="btn-forward" onclick="sendCommand('f')">➜ Forward</button>
+    <button class="btn-stop" onclick="sendCommand('s')">■ Stop</button>
+    <button class="btn-backward" onclick="sendCommand('b')">← Backward</button>
+  </div>
+
+  <div class="download-controls">
+    <button class="btn-pdf" onclick="downloadPDF()">Download PDF Report</button>
+    <button class="btn-excel" onclick="downloadExcel()">Download Excel Report</button>
+    <button class="btn-clear" onclick="clearHistory()">Clear Firebase History</button>
+  </div>
+
+  <div class="dashboard">
+
+    <div class="card direction-card">
+      <span class="card-title">Current Direction</span>
+      <span class="card-value" id="val-dir">--</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Temperature</span>
+        <span class="card-value" id="val-temp">-- °C</span>
+      </div>
+      <div class="chart-container"><canvas id="chart-temp"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Humidity</span>
+        <span class="card-value" id="val-hum">-- %</span>
+      </div>
+      <div class="chart-container"><canvas id="chart-hum"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">pH Level</span>
+        <span class="card-value" id="val-ph">--</span>
+      </div>
+      <div class="chart-container"><canvas id="chart-ph"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">TDS</span>
+        <span class="card-value" id="val-tds">-- ppm</span>
+      </div>
+      <div class="chart-container"><canvas id="chart-tds"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Turbidity</div>
+          <div class="card-label" id="val-turb-label">Status: Unknown</div>
+        </div>
+        <span class="card-value" id="val-turb">-- NTU</span>
+      </div>
+      <div class="chart-container"><canvas id="chart-turb"></canvas></div>
+    </div>
+
+    <div class="card ai-card">
+      <h2 class="ai-title">AI Random Forest Water Usage Suggestion</h2>
+      <div class="ai-status" id="ai-main-status">Waiting for Firebase Data...</div>
+
+      <div class="suggestion-grid">
+        <div class="suggestion-box">
+          <h3>Drinking Water</h3>
+          <p id="drink-status">--</p>
+        </div>
+        <div class="suggestion-box">
+          <h3>Farming / Irrigation</h3>
+          <p id="farm-status">--</p>
+        </div>
+        <div class="suggestion-box">
+          <h3>Fish / Aquaculture</h3>
+          <p id="fish-status">--</p>
+        </div>
+        <div class="suggestion-box">
+          <h3>Cleaning / General Use</h3>
+          <p id="clean-status">--</p>
+        </div>
+      </div>
+
+      <div class="reason-box" id="ai-reason">
+        AI suggestion will appear here after receiving sensor values.
+      </div>
+    </div>
+
+    <div class="card history-card">
+      <h2 class="ai-title">Firebase Data History</h2>
+      <p style="color:#94a3b8;">Latest saved records from Firebase history path.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date & Time</th>
+              <th>Temperature</th>
+              <th>Humidity</th>
+              <th>pH</th>
+              <th>TDS</th>
+              <th>Turbidity</th>
+              <th>Direction</th>
+              <th>Main Suggestion</th>
+              <th>Drinking</th>
+              <th>Farming</th>
+              <th>Fish</th>
+              <th>Cleaning</th>
+            </tr>
+          </thead>
+          <tbody id="history-body">
+            <tr><td colspan="12">No history yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBzXzocbdytn4N8vLrT-V2JYZ8pgqWrbC0",
+      authDomain: "self-balancing-7a9fe.firebaseapp.com",
+      databaseURL: "https://self-balancing-7a9fe-default-rtdb.firebaseio.com",
+      projectId: "self-balancing-7a9fe",
+      storageBucket: "self-balancing-7a9fe.firebasestorage.app",
+      messagingSenderId: "1044959372723",
+      appId: "1:1044959372723:web:7e1f73307107cf91ba97c6",
+      measurementId: "G-357J7ZXYED"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const rootRef = "__92_Submarine_20_04_2026__";
+    const sensorRef = database.ref(`${rootRef}/2_Sensor_Data`);
+    const historyRef = database.ref(`${rootRef}/3_Data_History`);
+
+    let historyData = [];
+    let lastSavedTime = 0;
+    const SAVE_INTERVAL = 10000; // saves every 10 seconds
+
+    const dirMap = {
+      f: "Forward",
+      b: "Backward",
+      s: "Stop",
+      l: "Left",
+      r: "Right"
+    };
+
+    const maxDataPoints = 60;
+    const emptyLabels = Array.from({ length: maxDataPoints }, (_, i) => i);
+
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false }
+      },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      },
+      elements: {
+        point: { radius: 0 },
+        line: { tension: 0.4, borderWidth: 3 }
+      },
+      animation: { duration: 0 }
+    };
+
+    const charts = {};
+
+    function createChart(id, color) {
+      const ctx = document.getElementById(id).getContext("2d");
+      const gradient = ctx.createLinearGradient(0, 0, 0, 100);
+      gradient.addColorStop(0, color + "90");
+      gradient.addColorStop(1, color + "00");
+
+      return new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: emptyLabels,
+          datasets: [{
+            data: Array(maxDataPoints).fill(0),
+            borderColor: color,
+            backgroundColor: gradient,
+            fill: true
+          }]
+        },
+        options: commonOptions
+      });
+    }
+
+    charts.temp = createChart("chart-temp", "#ef4444");
+    charts.hum = createChart("chart-hum", "#3b82f6");
+    charts.ph = createChart("chart-ph", "#10b981");
+    charts.tds = createChart("chart-tds", "#f59e0b");
+    charts.turb = createChart("chart-turb", "#ec4899");
+
+    let lastRealData = {
+      temp: 0,
+      hum: 0,
+      ph: 0,
+      tds: 0,
+      turb: 0
+    };
+
+    let time = 0;
+
+    function updateChartData(chart, newValue) {
+      const data = chart.data.datasets[0].data;
+      data.push(newValue);
+      if (data.length > maxDataPoints) data.shift();
+      chart.update();
+    }
+
+    function randomForestWaterPrediction(temp, ph, tds, turbidity) {
+      let drinkVotes = 0;
+      let farmVotes = 0;
+      let fishVotes = 0;
+      let cleanVotes = 0;
+      let reasons = [];
+
+      if (ph >= 6.5 && ph <= 8.5 && tds <= 500 && turbidity <= 5) {
+        drinkVotes++;
+      } else {
+        reasons.push("Drinking water is not safe because pH, TDS, or turbidity is outside safe range.");
+      }
+
+      if (tds <= 500) {
+        drinkVotes++;
+        fishVotes++;
+      } else if (tds <= 2000) {
+        farmVotes++;
+        cleanVotes++;
+        reasons.push("TDS is high for drinking, but it may be usable for irrigation or cleaning.");
+      } else {
+        cleanVotes++;
+        reasons.push("TDS is very high, so avoid drinking use.");
+      }
+
+      if (ph >= 6.5 && ph <= 8.5) {
+        drinkVotes++;
+        farmVotes++;
+        fishVotes++;
+      } else if (ph >= 5.5 && ph <= 9.0) {
+        farmVotes++;
+        cleanVotes++;
+        reasons.push("pH is not ideal for drinking, but usable for some farming/general purposes.");
+      } else {
+        reasons.push("pH level is highly abnormal.");
+      }
+
+      if (turbidity <= 5) {
+        drinkVotes++;
+        fishVotes++;
+      } else if (turbidity <= 50) {
+        farmVotes++;
+        cleanVotes++;
+        reasons.push("Turbidity is high, so filtration is needed before drinking.");
+      } else {
+        cleanVotes++;
+        reasons.push("Turbidity is very high; water is muddy/unclear.");
+      }
+
+      if (temp >= 20 && temp <= 35) {
+        farmVotes++;
+        fishVotes++;
+      } else {
+        reasons.push("Temperature is not in the ideal range for aquatic use.");
+      }
+
+      const drinkGood = drinkVotes >= 3;
+      const farmGood = farmVotes >= 2 || (!drinkGood && ph >= 5.5 && ph <= 9.0);
+      const fishGood = fishVotes >= 3 && turbidity <= 25;
+      const cleanGood = cleanVotes >= 1 || !drinkGood;
+
+      let mainStatus = "";
+      let mainType = "";
+
+      if (drinkGood) {
+        mainStatus = "Water is suitable for drinking";
+        mainType = "good";
+      } else if (farmGood) {
+        mainStatus = "Not suitable for drinking, but usable for farming";
+        mainType = "medium";
+      } else if (cleanGood) {
+        mainStatus = "Not suitable for drinking, use only for cleaning/general purpose";
+        mainType = "medium";
+      } else {
+        mainStatus = "Water quality is poor";
+        mainType = "bad";
+      }
+
+      if (reasons.length === 0) {
+        reasons.push("All main parameters are within acceptable range.");
+      }
+
+      return {
+        mainStatus,
+        mainType,
+        drinkText: drinkGood ? "Good for drinking" : "Not good for drinking",
+        farmText: farmGood ? "Good for farming" : "Not recommended",
+        fishText: fishGood ? "Good for fish/aquaculture" : "Not recommended",
+        cleanText: cleanGood ? "Good for cleaning/general use" : "Not recommended",
+        reasons: reasons.join(" | ")
+      };
+    }
+
+    function setStatus(id, text, type) {
+      const el = document.getElementById(id);
+      el.innerText = text;
+      el.className = "";
+      if (type === "good") el.classList.add("good");
+      else if (type === "bad") el.classList.add("bad");
+      else el.classList.add("medium");
+    }
+
+    function updateAISuggestion(temp, ph, tds, turbidity) {
+      const result = randomForestWaterPrediction(temp, ph, tds, turbidity);
+
+      const main = document.getElementById("ai-main-status");
+      main.innerText = result.mainStatus;
+      main.className = "ai-status " + result.mainType;
+
+      setStatus("drink-status", result.drinkText, result.drinkText.includes("Good") ? "good" : "bad");
+      setStatus("farm-status", result.farmText, result.farmText.includes("Good") ? "good" : "bad");
+      setStatus("fish-status", result.fishText, result.fishText.includes("Good") ? "good" : "bad");
+      setStatus("clean-status", result.cleanText, result.cleanText.includes("Good") ? "good" : "bad");
+
+      document.getElementById("ai-reason").innerHTML = `
+        <b>Sensor Values:</b><br>
+        Temperature: ${temp} °C<br>
+        pH: ${ph}<br>
+        TDS: ${tds} ppm<br>
+        Turbidity: ${turbidity} NTU<br><br>
+        <b>AI Reason:</b><br>
+        ${result.reasons}
+      `;
+
+      return result;
+    }
+
+    function saveHistory(record) {
+      const now = Date.now();
+
+      if (now - lastSavedTime < SAVE_INTERVAL) return;
+      lastSavedTime = now;
+
+      historyRef.push(record)
+        .then(() => console.log("History saved"))
+        .catch((err) => console.error("History save error:", err));
+    }
+
+    sensorRef.on("value", (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      const temp = Number(data.temperature || 0);
+      const hum = Number(data.humidity || 0);
+      const ph = Number(data.ph || 0);
+      const tds = Number(data.tds_ppm || 0);
+      const turbidity = Number(data.turbidity_ntu || 0);
+      const direction = dirMap[data.directions] || data.directions || "--";
+
+      document.getElementById("val-temp").innerText = `${temp} °C`;
+      document.getElementById("val-hum").innerText = `${hum} %`;
+      document.getElementById("val-ph").innerText = ph;
+      document.getElementById("val-tds").innerText = `${tds} ppm`;
+      document.getElementById("val-turb").innerText = `${turbidity} NTU`;
+      document.getElementById("val-turb-label").innerText = `Status: ${data.turbidity_label || "Unknown"}`;
+      document.getElementById("val-dir").innerText = direction;
+
+      lastRealData.temp = temp;
+      lastRealData.hum = hum;
+      lastRealData.ph = ph;
+      lastRealData.tds = tds;
+      lastRealData.turb = turbidity;
+
+      const ai = updateAISuggestion(temp, ph, tds, turbidity);
+
+      const record = {
+        dateTime: new Date().toLocaleString(),
+        timestamp: Date.now(),
+        temperature: temp,
+        humidity: hum,
+        ph: ph,
+        tds_ppm: tds,
+        turbidity_ntu: turbidity,
+        turbidity_label: data.turbidity_label || "Unknown",
+        direction: direction,
+        main_suggestion: ai.mainStatus,
+        drinking: ai.drinkText,
+        farming: ai.farmText,
+        fish: ai.fishText,
+        cleaning: ai.cleanText,
+        ai_reason: ai.reasons
+      };
+
+      saveHistory(record);
+    });
+
+    historyRef.limitToLast(50).on("value", (snapshot) => {
+      historyData = [];
+
+      snapshot.forEach((child) => {
+        historyData.push({
+          id: child.key,
+          ...child.val()
+        });
+      });
+
+      historyData.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      renderHistoryTable();
+    });
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById("history-body");
+
+      if (historyData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="12">No history yet</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = historyData.map(row => `
+        <tr>
+          <td>${row.dateTime || "--"}</td>
+          <td>${row.temperature || 0} °C</td>
+          <td>${row.humidity || 0} %</td>
+          <td>${row.ph || 0}</td>
+          <td>${row.tds_ppm || 0} ppm</td>
+          <td>${row.turbidity_ntu || 0} NTU</td>
+          <td>${row.direction || "--"}</td>
+          <td>${row.main_suggestion || "--"}</td>
+          <td>${row.drinking || "--"}</td>
+          <td>${row.farming || "--"}</td>
+          <td>${row.fish || "--"}</td>
+          <td>${row.cleaning || "--"}</td>
+        </tr>
+      `).join("");
+    }
+
+    setInterval(() => {
+      time += 0.15;
+      updateChartData(charts.temp, lastRealData.temp + Math.sin(time) * 0.5);
+      updateChartData(charts.hum, lastRealData.hum + Math.sin(time + 1) * 1);
+      updateChartData(charts.ph, lastRealData.ph + Math.sin(time + 2) * 0.05);
+      updateChartData(charts.tds, lastRealData.tds + Math.sin(time + 3) * 2);
+      updateChartData(charts.turb, lastRealData.turb + Math.sin(time + 4) * 15);
+    }, 100);
+
+    function sendCommand(dir) {
+      sensorRef.update({ directions: dir })
+        .then(() => console.log("Direction updated:", dir))
+        .catch((error) => {
+          console.error("Firebase update error:", error);
+          alert("Direction update failed. Check Firebase rules.");
+        });
+    }
+
+    function downloadPDF() {
+      if (historyData.length === 0) {
+        alert("No history data available for PDF.");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF("landscape");
+
+      doc.setFontSize(18);
+      doc.text("Submarine Water Quality Report", 14, 15);
+
+      doc.setFontSize(10);
+      doc.text("Generated: " + new Date().toLocaleString(), 14, 23);
+
+      const tableData = historyData.map(row => [
+        row.dateTime || "--",
+        row.temperature || 0,
+        row.humidity || 0,
+        row.ph || 0,
+        row.tds_ppm || 0,
+        row.turbidity_ntu || 0,
+        row.direction || "--",
+        row.main_suggestion || "--",
+        row.drinking || "--",
+        row.farming || "--",
+        row.fish || "--",
+        row.cleaning || "--"
+      ]);
+
+      doc.autoTable({
+        head: [[
+          "Date & Time",
+          "Temp C",
+          "Humidity %",
+          "pH",
+          "TDS ppm",
+          "Turbidity NTU",
+          "Direction",
+          "Main Suggestion",
+          "Drinking",
+          "Farming",
+          "Fish",
+          "Cleaning"
+        ]],
+        body: tableData,
+        startY: 30,
+        styles: {
+          fontSize: 7,
+          cellPadding: 2
+        },
+        headStyles: {
+          fillColor: [56, 189, 248]
+        }
+      });
+
+      doc.save("water_quality_history_report.pdf");
+    }
+
+    function downloadExcel() {
+      if (historyData.length === 0) {
+        alert("No history data available for Excel.");
+        return;
+      }
+
+      const excelData = historyData.map(row => ({
+        "Date Time": row.dateTime || "--",
+        "Temperature C": row.temperature || 0,
+        "Humidity %": row.humidity || 0,
+        "pH": row.ph || 0,
+        "TDS ppm": row.tds_ppm || 0,
+        "Turbidity NTU": row.turbidity_ntu || 0,
+        "Turbidity Label": row.turbidity_label || "--",
+        "Direction": row.direction || "--",
+        "Main Suggestion": row.main_suggestion || "--",
+        "Drinking": row.drinking || "--",
+        "Farming": row.farming || "--",
+        "Fish": row.fish || "--",
+        "Cleaning": row.cleaning || "--",
+        "AI Reason": row.ai_reason || "--"
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Water History");
+      XLSX.writeFile(workbook, "water_quality_history.xlsx");
+    }
+
+    function clearHistory() {
+      const confirmDelete = confirm("Are you sure you want to clear all Firebase history data?");
+      if (!confirmDelete) return;
+
+      historyRef.remove()
+        .then(() => alert("Firebase history cleared successfully."))
+        .catch((err) => {
+          console.error(err);
+          alert("Failed to clear Firebase history.");
+        });
+    }
+  </script>
+
+</body>
+</html>
